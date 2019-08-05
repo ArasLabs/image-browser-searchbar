@@ -1,0 +1,201 @@
+﻿<!DOCTYPE html>
+<!-- (c) Copyright by Aras Corporation, 2004-2013. -->
+<html>
+<head>
+	<title>Directory Tree</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<style type="text/css">
+		@import "../../javascript/include.aspx?classes=arasClaro.css";
+		@import "../../styles/default.css";
+		@import "../../javascript/include.aspx?classes=common.css";
+	</style>
+	<script>
+		var par = parent.parent;
+		var aras = par.imageBrowserParams.aras;
+	</script>
+	<script type="text/javascript" src="../../javascript/include.aspx?classes=/dojo.js" data-dojo-config="baseUrl:'../../javascript/dojo'"></script>
+	<script type="text/javascript" src="../../javascript/include.aspx?classes=XmlDocument"></script>
+	<script type="text/javascript">
+		var iconslistReady = false,
+			iconslistCont = "",
+			fileBase = aras.getScriptsURL() + "ImageBrowser/";
+		Object.defineProperty(window, "currViewMode",  {
+			get: function () {
+				return parent.currViewMode;
+			},
+			set: function (value) {
+				parent.currViewMode = value;
+			}
+		});
+
+		function initToolbar()
+		{
+			var anotherViewMode = currViewMode == "details_view" ? "icons_view" : "details_view";
+
+			var tb = document.toolbar.getActiveToolbar();
+			tb.getElement("details_view").setEnabled(true);
+			tb.getElement("icons_view").setEnabled(true);
+			tb.getElement(currViewMode).setState(true);
+			tb.getElement(anotherViewMode).setState(false);
+		}
+
+		function onToolbarBtnClick(clickedBtn)
+		{
+			var btnId = clickedBtn.getId();
+			var tb = document.toolbar.getActiveToolbar();
+
+			if (btnId == "set_nothing")
+			{
+				par.closeWindow("set_nothing");
+			}
+			else if (btnId == "ready_btn") {
+				var files = parent.document.getElementById('files');
+				var grid = files.contentWindow.document.grid;
+
+				if (grid) {
+					var rowId = grid.getSelectedId();
+
+					if (rowId) {
+						var url = grid.getUserData(rowId, "url");
+						par.closeWindow(url.substr(3));
+					} 
+					else {
+						aras.AlertError(aras.getResource("", "image_browser.select_an_image"), null, null, window);
+					}
+				}
+				else {
+					aras.AlertError(aras.getResource("", "image_browser.select_an_image"), null, null, window);
+				}
+			}
+			else if (btnId == "details_view" || btnId == "icons_view") {
+				if (btnId == currViewMode){
+					tb.getElement(btnId).setState(true);
+					return false;
+				}
+				currViewMode = btnId;
+
+				var icons_table = parent.document.getElementById("files").contentWindow.document.getElementById("iconsTable");
+				var details_table = parent.document.getElementById("files").contentWindow.document.getElementById("detailsTable");
+
+				if (btnId == "details_view"){
+					tb.getElement("icons_view").setState(false);
+					if (icons_table) icons_table.style.display = "none";
+					if (details_table) details_table.style.display = "";
+				}
+				else{
+					tb.getElement("details_view").setState(false);
+					if (details_table) details_table.style.display = "none";
+					if (icons_table) icons_table.style.display = "";
+				}
+
+				var date = new Date(); date.setFullYear(date.getFullYear() + 1);
+				parent.SetCookie("innovator_imagesView", "_" + currViewMode, date, "/");
+			}
+		}
+
+		function onToolbarEditChange(editedField)
+		{
+			// Get the filter string the user entered
+			var filter = editedField.GetText().toLocaleLowerCase();
+			// Get the window of the dialog
+			var parentWindow = window.parent;
+
+			// Determine if the details view or the icons view is enabled
+			var IsDetailsViewDisplayed = toolbar.GetItem("details_view").GetState()
+
+			// Doing this separately for each view depending on what's enabled doesn't work because the grid is not refreshed when the user
+			// switches between views. Because of this, we need to filter both grids as the user types in their filter
+			var detailsGrid = parentWindow.frames["files"].frames["grid"];
+			var iconsList = parentWindow.frames["files"].frames["icons_list"];
+
+			var iconsCollection = iconsList.document.getElementsByTagName("table");
+			for (var i = 0; i < iconsCollection.length; i++)
+			{
+				/* We are going to perform ID checks on both the row in the details grid as well as the icon in the icons list.
+				 * This may not be necessary because the rows should be the same, but this will account for any odd cases where the
+				 * grids could get out of sync.
+				 */
+				// First disable the detail row
+				var detailRow = detailsGrid.grid_Experimental.getRowNode(i);
+				var detailRowId = detailsGrid.GetRowId(i).toLocaleLowerCase();
+
+				if (detailRowId.includes(filter))
+				{
+					detailRow.style.display = '';
+				}
+				else
+				{
+					detailRow.style.display = 'none';
+				}
+
+				// Then disable the icon
+				var iconEntry = iconsCollection[i];
+				var iconId = iconEntry.getAttribute("id").toLocaleLowerCase();
+
+				if (iconId.includes(filter))
+				{
+					iconEntry.style.display = '';
+				}
+				else
+				{
+					iconEntry.style.display = 'none';
+				}
+			}
+/*
+			if (IsDetailsViewDisplayed)
+			{
+				var detailsGrid = parentWindow.frames["files"].frames["grid"];
+				for (var i = 0; i < detailsGrid.getRowCount(); i++)
+				{
+					var rowNode = detailsGrid.grid_Experimental.getRowNode(i);
+					var rowId = detailsGrid.GetRowId(i).toLocaleLowerCase();
+
+					if (rowId.includes(filter))
+					{
+						rowNode.style.display = '';
+					}
+					else
+					{
+						rowNode.style.display = 'none';
+					}
+				}
+			}
+			else
+			{
+				var iconsList = parentWindow.frames["files"].frames["icons_list"];
+
+				var iconsCollection = iconsList.document.getElementsByTagName("table");
+				for (var i = 0; i < iconsCollection.length; i++)
+				{
+					var iconTable = iconsCollection[i];
+					var iconTableId = iconTable.getAttribute("id").toLocaleLowerCase();
+
+					if (iconTableId.includes(filter))
+					{
+						iconTable.style.display = '';
+					}
+					else
+					{
+						iconTable.style.display = 'none';
+					}
+				}
+			}
+*/
+		}
+
+		clientControlsFactory.createControl("Aras.Client.Controls.Public.ToolBar", { id: "top_toolbar", connectId: "toolbarContainer" }, function (control) {
+			document.toolbar = toolbar = control;
+			clientControlsFactory.on(toolbar, {
+				"onClick": onToolbarBtnClick,
+				"onChange": onToolbarEditChange
+			});
+			toolbar.loadXml(aras.getI18NXMLResource("imgviewer_toolbar.xml", fileBase + "../../"));
+			toolbar.show();
+			initToolbar();
+		});
+	</script>
+</head>
+<body class="claro" style="margin: 0px; padding: 0px;" scroll="no">
+	<div id="toolbarContainer"></div>
+</body>
+</html>
